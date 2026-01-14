@@ -49,18 +49,37 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 3001;
 
-const server = app.listen(PORT, () => {
-    console.log(`🚀 WACMS Backend running on port ${PORT}`);
-    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+// Run migrations on startup (for Render/production)
+const runMigrations = require('./migrations/run');
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-    console.log('SIGTERM received. Shutting down gracefully...');
-    server.close(() => {
-        console.log('Server closed.');
-        process.exit(0);
-    });
-});
+const startServer = async () => {
+    try {
+        // Run migrations before starting
+        if (process.env.NODE_ENV === 'production') {
+            console.log('🔄 Running database migrations...');
+            await runMigrations();
+            console.log('✅ Migrations complete');
+        }
+
+        const server = app.listen(PORT, () => {
+            console.log(`🚀 WACMS Backend running on port ${PORT}`);
+            console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+        });
+
+        // Graceful shutdown
+        process.on('SIGTERM', () => {
+            console.log('SIGTERM received. Shutting down gracefully...');
+            server.close(() => {
+                console.log('Server closed.');
+                process.exit(0);
+            });
+        });
+    } catch (error) {
+        console.error('❌ Failed to start server:', error);
+        process.exit(1);
+    }
+};
+
+startServer();
 
 module.exports = app;
